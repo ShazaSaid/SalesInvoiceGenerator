@@ -92,12 +92,12 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 		try {
 			readInvoiceItemsTableValues(System.getProperty("user.dir") + "\\InvoiceLine.csv");
 		} catch (IOException ex) {
-			System.out.println(ex.getMessage());
+			JOptionPane.showMessageDialog(null, "Either the file doesnt exist or not in the correct format.");
 		}
 		try {
 			readInvoiceHeadersTableValues(System.getProperty("user.dir") + "\\InvoiceHeader.csv");
 		} catch (ParseException | IOException ex) {
-			System.out.println(ex.getMessage());
+			JOptionPane.showMessageDialog(null, "Either the file doesnt exist or not in the correct format.");
 		}
 	}
 
@@ -152,8 +152,7 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 		newInvoiceLine.setOrderedCount(Integer.parseInt(orderedPrice));
 		newInvoiceLine.setInvoiceId(HelperFunctions.getNextInvoiceId(tempInvoiceHeadersList));
 		tempInvoiceItemsList.add(newInvoiceLine);
-		linesTableModel = new SalesInvoiceLinesTableModel(
-				new String[]{"Invoice ID", "Item Name", "Item Price", "Count", "Total"}, tempInvoiceItemsList);
+		linesTableModel.invoiceLinesList = tempInvoiceItemsList;
 
 		InvoiceHeader newInvoiceHeader = new InvoiceHeader();
 		newInvoiceHeader.setInvoiceId(newInvoiceLine.getInvoiceId());
@@ -162,8 +161,7 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 		newInvoiceHeader.setCustomerName(customerName);
 		newInvoiceHeader.addInvoiceLines(newInvoiceLine);
 		tempInvoiceHeadersList.add(newInvoiceHeader);
-		headersTableModel = new InvoiceHeadersTableModel(
-				new String[]{"Invoice ID", "Date", "Customer Name", "Invoice Total"}, tempInvoiceHeadersList);
+		headersTableModel.invoiceHeadersList = tempInvoiceHeadersList;
 		addInvoiceHeaderTable(true);
 		addInvoiceItemsTable(true);
 	}
@@ -201,9 +199,30 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 			if (!Objects.isNull(tempInvoiceHeadersList)) {// before saving the list is saved in a temp list, this is to
 															// be able to cancel the new additions
 				invoiceHeadersList = tempInvoiceHeadersList;
+				tempInvoiceHeadersList = null;
 			}
 			if (!Objects.isNull(tempInvoiceItemsList)) {
 				invoiceItemsList = tempInvoiceItemsList;
+				tempInvoiceItemsList = null;
+			}
+			if (!Objects.isNull(selectedInvoiceHeader)) { // update the headers table data with the updates done in the
+															// text fields
+				for (int i = 0; i < invoiceHeadersList.size(); i++) {
+					if (invoiceHeadersList.get(i).getInvoiceId() == selectedInvoiceHeader.getInvoiceId()) {
+						invoiceHeadersList.get(i).setCustomerName(customerNameTextField.getText());
+						try {
+							String Guidate = invoiceDateTxtField.getText();
+							invoiceHeadersList.get(i).setInvoiceDate(new SimpleDateFormat("dd-MM-yyyy").parse(Guidate));
+						} catch (ParseException parseException) {
+							JOptionPane.showMessageDialog(null, "Wrong date format!");
+						}
+					}
+				}
+				headersTableModel.invoiceHeadersList = invoiceHeadersList;
+				addInvoiceHeaderTable(true);
+				invoiceDateTxtField.setText("");
+				customerNameTextField.setText("");
+				invoiceNumberLabel.setText("");
 			}
 		});
 	}
@@ -212,12 +231,10 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 		cancelInvoiceBtn = new JButton("Cancel");
 		rightPanel.add(cancelInvoiceBtn);
 		cancelInvoiceBtn.addActionListener(e -> {
-			linesTableModel = new SalesInvoiceLinesTableModel(
-					new String[]{"Invoice ID", "Item Name", "Item Price", "Count", "Total"}, invoiceItemsList);
-			setSize(getWidth() + 1, getHeight() + 1);
+			linesTableModel.invoiceLinesList = invoiceItemsList;
 
-			headersTableModel = new InvoiceHeadersTableModel(
-					new String[]{"Invoice ID", "Date", "Customer Name", "Invoice Total"}, invoiceHeadersList);
+			headersTableModel.invoiceHeadersList = invoiceHeadersList;
+
 			addInvoiceItemsTable(true);
 			addInvoiceHeaderTable(true);
 		});
@@ -255,11 +272,16 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 		saveFile = new JMenuItem("Save File");
 		saveFile.setAccelerator(KeyStroke.getKeyStroke('S', KeyEvent.CTRL_DOWN_MASK));
 		saveFile.addActionListener(e -> {
-			try {
-				saveInvoicesHeadersToFile();
-				saveInvoicesLinesToFile();
-			} catch (IOException ioException) {
-				ioException.printStackTrace();
+			if (!Objects.isNull(tempInvoiceHeadersList) || !Objects.isNull(tempInvoiceItemsList)) {
+				JOptionPane.showMessageDialog(null, "Please save the changes first!");
+			} else {
+				try {
+
+					saveInvoicesHeadersToFile();
+					saveInvoicesLinesToFile();
+				} catch (IOException ioException) {
+					ioException.printStackTrace();
+				}
 			}
 		});
 		saveFile.setActionCommand("S");
@@ -284,9 +306,19 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 		String[] invoiceHeadersFileEntries = HelperFunctions.readFile(filePath);
 		for (int i = 0; i < invoiceHeadersFileEntries.length;) {
 			invoiceHeader = new InvoiceHeader();
-			invoiceHeader.setInvoiceId(Integer.parseInt(invoiceHeadersFileEntries[i]));
+			try {
+				invoiceHeader.setInvoiceId(Integer.parseInt(invoiceHeadersFileEntries[i]));
+			} catch (Exception ex) {
+				JOptionPane.showMessageDialog(null, "Wrong invoice ID format!");
+				break;
+			}
 			i++;
-			invoiceHeader.setInvoiceDate(new SimpleDateFormat("dd-MM-yyyy").parse(invoiceHeadersFileEntries[i]));
+			try {
+				invoiceHeader.setInvoiceDate(new SimpleDateFormat("dd-MM-yyyy").parse(invoiceHeadersFileEntries[i]));
+			} catch (Exception ex) {
+				JOptionPane.showMessageDialog(null, "Wrong date format!");
+				break;
+			}
 			i++;
 			invoiceHeader.setCustomerName(invoiceHeadersFileEntries[i]);
 			i++;
@@ -388,8 +420,7 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 				invoiceItemsListTemp.add(invoiceLine);
 			}
 		}
-		linesTableModel = new SalesInvoiceLinesTableModel(
-				new String[]{"Invoice ID", "Item Name", "Item Price", "Count", "Total"}, invoiceItemsListTemp);
+		linesTableModel.invoiceLinesList = invoiceItemsListTemp;
 	}
 
 	private void loadFiles() throws IOException, ParseException {
