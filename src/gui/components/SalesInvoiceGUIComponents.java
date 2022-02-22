@@ -90,14 +90,12 @@ public class SalesInvoiceGUIComponents extends JFrame implements ActionListener 
 
 	private void readDataFiles() {
 		try {
-			readInvoiceItemsTableValues(
-					"C:\\Users\\Shaza\\Downloads\\sales-invoice-generator\\Sales Invoice Generator\\InvoiceLine.csv");
+			readInvoiceItemsTableValues(System.getProperty("user.dir") + "\\InvoiceLine.csv");
 		} catch (IOException ex) {
 			System.out.println(ex.getMessage());
 		}
 		try {
-			readInvoiceHeadersTableValues(
-					"C:\\Users\\Shaza\\Downloads\\sales-invoice-generator\\Sales Invoice Generator\\InvoiceHeader.csv");
+			readInvoiceHeadersTableValues(System.getProperty("user.dir") + "\\InvoiceHeader.csv");
 		} catch (ParseException | IOException ex) {
 			System.out.println(ex.getMessage());
 		}
